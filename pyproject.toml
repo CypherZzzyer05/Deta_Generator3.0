@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deta-generator3"
+version = "3.0.0"
+description = "Paired spectrum and electric-field datasets for seven-parameter As2Se3 tetramers on Au/finite glass"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24,<3", "scipy>=1.10,<2", "psutil>=5.9"]
+
+[project.scripts]
+deta-generator3 = "deta_generator3.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+deta_generator3 = ["assets/configs/*.json", "assets/materials/*", "assets/scripts/*.ps1"]

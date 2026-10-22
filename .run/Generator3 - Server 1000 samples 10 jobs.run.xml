@@ -1,0 +1,22 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Generator3 Paired 1000 samples 10 jobs" type="PythonConfigurationType" factoryName="Python">
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs>
+      <env name="PYTHONUNBUFFERED" value="1" />
+      <env name="LUMERICAL_LUMAPI_PATH" value="E:\Lumerical\ANSYS Inc\v251\Lumerical\api\python\lumapi.py" />
+    </envs>
+    <option name="SDK_HOME" value="" />
+    <option name="IS_MODULE_SDK" value="true" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="ADD_CONTENT_ROOTS" value="false" />
+    <option name="ADD_SOURCE_ROOTS" value="false" />
+    <option name="SCRIPT_NAME" value="deta_generator3" />
+    <option name="PARAMETERS" value="parallel --job-dir jobs/paired1000 --samples 1000 --jobs 10" />
+    <option name="MODULE_MODE" value="true" />
+    <option name="SHOW_COMMAND_LINE" value="false" />
+    <option name="EMULATE_TERMINAL" value="false" />
+    <option name="REDIRECT_INPUT" value="false" />
+    <method v="2" />
+  </configuration>
+</component>

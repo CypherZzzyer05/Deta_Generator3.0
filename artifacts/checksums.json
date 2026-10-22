@@ -1,0 +1,11 @@
+{
+  "distribution": "deta-generator3",
+  "version": "3.0.0",
+  "wheel": "deta_generator3-3.0.0-py3-none-any.whl",
+  "sha256": "1750286e73f08a57e7ffd7462675078ac8d42a9723b6ecb776d3518f02ec49fe",
+  "bytes": 63841,
+  "package_files_verified": 20,
+  "installed_origin_verified": true,
+  "installed_init_and_plan_verified": true,
+  "native_time_solve_in_this_check": false
+}

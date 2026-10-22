@@ -1,0 +1,53 @@
+{
+  "native_backend": "8.31.3633",
+  "native_solver_status": 2,
+  "samples_completed": 1,
+  "registered_pilot_samples": 3,
+  "native_sample_sha256": "40804f87173a673fc53d6743ff93e6760f3360c1e32340f2135818838b9da906",
+  "elapsed_wall_seconds": 156.03199999999197,
+  "attempts": [
+    {
+      "time_limit_ps": 16,
+      "elapsed_seconds": 156.03199999999197,
+      "status": 2
+    }
+  ],
+  "field_shape": [
+    2,
+    9,
+    128,
+    128
+  ],
+  "field_wavelengths_nm": [
+    600,
+    700,
+    800,
+    900,
+    1000,
+    1100,
+    1200,
+    1300,
+    1400
+  ],
+  "field_z_nm": [
+    100,
+    400
+  ],
+  "pixel_x_endpoints_nm": [
+    -793.75,
+    793.75
+  ],
+  "original_project_reconstruction_exact": {
+    "intensity": true,
+    "hotspot_mask": true,
+    "poynting_incident_normalized": true,
+    "pixel_x_nm": true,
+    "pixel_y_nm": true
+  },
+  "maximum_periodic_boundary_error": 0.0,
+  "native_layout_verified": true,
+  "quality_gates_passed": true,
+  "as2se3_max_complex_index_error": 0.012231429420080216,
+  "numeric_quality": "pipeline_validation",
+  "interpretation": "One true native paired acquisition passed current engineering gates. Original project field/hotspot/flux reconstruction is exactly equal. This is not global numerical convergence, a complete training dataset, model inverse accuracy or a multi-license native parallel test."
+}

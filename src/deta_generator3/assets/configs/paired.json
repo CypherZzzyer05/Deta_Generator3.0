@@ -1,0 +1,76 @@
+{
+  "output_dir": "data",
+  "sample_count": 1000,
+  "seed": 20261023,
+  "lumapi_path": null,
+  "quality_level": "pipeline_validation",
+  "parameter_range_source": "Same saved geometric design domain/seed as coarse128; 10nm mesh, 5nm metal Z, power downsample2; one representative 10-to-7.5nm engineering screen passed, not global convergence",
+  "bounds": {
+    "p": [
+      700,
+      900
+    ],
+    "dx": [
+      300,
+      400
+    ],
+    "dy": [
+      300,
+      400
+    ],
+    "h": [
+      200,
+      350
+    ],
+    "l": [
+      160,
+      220
+    ],
+    "alpha_1and3": [
+      -45,
+      45
+    ],
+    "alpha_2and4": [
+      -45,
+      45
+    ]
+  },
+  "simulation": {
+    "as2se3_model": "nk_csv",
+    "as2se3_nk_csv": "../materials/as2se3_joseph_400nm.csv",
+    "as2se3_source": "Author-provided n,k via refractiveindex.info Joseph-400nm; DOI:10.1021/acsami.0c12525; 400-nm film on glass; transfer to patterned 200-350nm heights unvalidated",
+    "wavelength_start_nm": 600,
+    "wavelength_stop_nm": 1400,
+    "field_wavelengths_nm": [
+      600,
+      700,
+      800,
+      900,
+      1000,
+      1100,
+      1200,
+      1300,
+      1400
+    ],
+    "field_z_nm": [
+      100,
+      400
+    ],
+    "image_size": 128,
+    "mesh_nm": 10,
+    "metal_mesh_nm": 5,
+    "power_downsample": 2,
+    "simulation_time_ps": 2,
+    "auto_shutoff_min": 1e-05,
+    "mesh_accuracy": 3,
+    "air_padding_nm": 1600,
+    "threads": 4,
+    "hide_fdtd": true,
+    "field_xy_span_nm": 1600,
+    "save_projects": false,
+    "gold_thickness_nm": 100,
+    "glass_thickness_nm": 350,
+    "gold_material": "Au (Gold) - Palik",
+    "glass_material": "SiO2 (Glass) - Palik"
+  }
+}
