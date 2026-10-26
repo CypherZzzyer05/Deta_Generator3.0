@@ -8,8 +8,10 @@ param(
     [ValidateRange(0,64)][int]$Workers = 0,
     [ValidateRange(0,64)][int]$Concurrency = 0,
     [ValidateRange(0,1024)][int]$Threads = 0,
+    [Nullable[int]]$Seed = $null,
     [string]$Lumapi = '',
-    [ValidateRange(1,10000)][int]$PackEvery = 10
+    [ValidateRange(1,10000)][int]$PackEvery = 10,
+    [ValidateRange(120,86400)][int]$StallTimeoutSeconds = 600
 )
 $ErrorActionPreference = 'Stop'
 $OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
@@ -17,10 +19,16 @@ $jobRoot = [System.IO.Path]::GetFullPath($JobDir)
 $configPath = Join-Path $jobRoot 'job.json'
 $layoutPath = Join-Path $jobRoot 'parallel_plan.json'
 $mergedPath = Join-Path $jobRoot 'merged'
+if ($null -eq $Seed) {
+    $Seed = if (Test-Path -LiteralPath $configPath) {
+        (Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json).seed
+    } else { 20261023 }
+}
+if ($Seed -lt 0) { throw 'Seed must be nonnegative.' }
 $pythonInfo = & $Python -c 'import sys,json,deta_generator3; from deta_generator3.resources import cpu_inventory; info=cpu_inventory(); print(json.dumps(dict(python=sys.executable,version=deta_generator3.__version__,package_file=deta_generator3.__file__,cpus=info[''budget_cpus''],cpu_inventory=info)))'
 if ($LASTEXITCODE -ne 0) { throw 'Cannot load deta_generator3 in the selected Python environment.' }
 $pythonInfo = $pythonInfo | ConvertFrom-Json
-if ([version]$pythonInfo.version -lt [version]'3.0.0') { throw 'Install deta-generator3 3.0.0 or newer first.' }
+if ([version]$pythonInfo.version -lt [version]'3.0.1') { throw 'Install deta-generator3 3.0.1 or newer first.' }
 $pythonExe = $pythonInfo.python
 if ($Jobs -gt 0) {
     if ($Concurrency -gt 0 -and $Concurrency -ne $Jobs) { throw '-Jobs and -Concurrency must agree; specify only -Jobs.' }
@@ -57,6 +65,7 @@ function Assert-Task {
     if ($taskConfig.sample_count -ne $Samples -or $layout.samples -ne $Samples -or $layout.workers -ne $Workers) {
         throw 'Sample count and shard count are fixed. Use a new JobDir to change them.'
     }
+    if ($taskConfig.seed -ne $Seed) { throw 'Seed is fixed for an existing task; use a new JobDir for new geometries.' }
     if ($taskConfig.simulation.gold_thickness_nm -ne 100 -or
         $taskConfig.simulation.glass_thickness_nm -ne 350 -or
         $taskConfig.simulation.wavelength_start_nm -ne 600 -or
@@ -82,11 +91,27 @@ function Show-Progress([switch]$WriteSnapshot) {
 
 function Merge-Results {
     $mergeArgs = @('merge','--config',$configPath,'--output',$mergedPath,'--shards')
-    for ($index=0; $index -lt $Workers; $index++) { $mergeArgs += (Join-Path $jobRoot "shard$index") }
+    $existingShards = @()
+    for ($index=0; $index -lt $Workers; $index++) {
+        $folder = Join-Path $jobRoot "shard$index"
+        if (Test-Path -LiteralPath (Join-Path $folder 'manifest.json')) { $existingShards += $folder }
+    }
+    if ($existingShards.Count -eq 0) { throw 'No initialized shard manifests to merge yet.' }
+    $mergeArgs += $existingShards
     Invoke-Generator $mergeArgs
     $summary = Get-Content -LiteralPath (Join-Path $mergedPath 'summary.json') -Raw | ConvertFrom-Json
     if ($summary.success -ne $Samples) { Write-Warning "Partial dataset: $($summary.success)/$Samples passed; failed=$($summary.failed), pending=$($summary.pending). Every failure remains recorded; failed samples are not automatically retried." }
     Write-Host "Dataset ready: $(Join-Path $mergedPath 'dataset.npz')"
+}
+
+function Assert-WorkersProgress {
+    # Keep this outside Show-Progress's observation-only exception handler.
+    & $pythonExe -m deta_generator3.watchdog --job-dir $jobRoot --expected-jobs $Concurrency --timeout-seconds $StallTimeoutSeconds
+    $watchdogExit = $LASTEXITCODE
+    if ($watchdogExit -eq 2) {
+        throw 'Verified worker stall: scheduling stopped. Existing workers and all data are preserved. Stop this controller before using recover_stalled_task.py; inspect the local Ansys licensing client and worker diagnostics.'
+    }
+    if ($watchdogExit -ne 0) { Write-Warning 'Watchdog observations unavailable; do not infer healthy native solving from Python worker count.' }
 }
 
 # Start-Process joins ArgumentList into one Windows command line. Quote each
@@ -100,7 +125,7 @@ if ($Command -eq 'prepare') {
         Assert-Task
     } else {
         $initArgs = @('init','--job-dir',$jobRoot,'--preset','paired',
-                      '--samples',"$Samples",'--threads',"$Threads")
+                      '--samples',"$Samples",'--threads',"$Threads",'--seed',"$Seed")
         if ($Lumapi) { $initArgs += @('--lumapi',$Lumapi) }
         Invoke-Generator $initArgs
         @{ samples=$Samples; workers=$Workers; created_at=(Get-Date).ToString('o') } |
@@ -185,6 +210,7 @@ try {
         $active = $remaining
         if (((Get-Date)-$lastDisplay).TotalSeconds -ge 30 -or $active.Count -eq 0) {
             $null = Show-Progress -WriteSnapshot
+            Assert-WorkersProgress
             $lastDisplay = Get-Date
         }
         if ($active.Count -gt 0) { Start-Sleep -Seconds 5 }

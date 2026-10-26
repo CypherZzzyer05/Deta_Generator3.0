@@ -1,5 +1,7 @@
 # Deta Generator 3.0
 
+当前版本 **3.0.1**：修复并行任务忽略`--seed`、未启动分片阻碍部分数据导出，并加入持续停滞监测和显式保留现场停止工具。更新说明见[3.0.1发布记录](docs/release_3.0.1.md)。这次只调整采样入口和任务管理，电磁求解、材料、场重建和质量门槛不变。
+
 参照本机 Deta Generator 2.0 的独立安装、CPU 分片并行、断点续跑和状态监控方式，为光谱＋场强多模态逆向设计生成配对数据。包名 `deta-generator3`，模块名 `deta_generator3`；与 2.0 共存。无需 CUDA、PyTorch 或原 LumOpt_test 项目。
 
 ## 固定物理约定
@@ -34,7 +36,7 @@ python -m deta_generator3 preflight --config jobs/pilot/job.json
 python -m deta_generator3 generate --config jobs/pilot/job.json --limit 1
 ```
 
-可安装 `artifacts/deta_generator3-3.0.0-py3-none-any.whl`。`lumapi`使用安装版自带API，不从PyPI另装。服务器v251也可通过同一环境变量指定对应 `lumapi.py`；多个版本共存时需要明确选择。`doctor`和`preflight`只建模／读网格／检查材料和资源，不推进时间求解。
+可安装 `artifacts/deta_generator3-3.0.1-py3-none-any.whl`。`lumapi`使用安装版自带API，不从PyPI另装。服务器v251也可通过同一环境变量指定对应 `lumapi.py`；多个版本共存时需要明确选择。`doctor`和`preflight`只建模／读网格／检查材料和资源，不推进时间求解。
 
 ## 像2.0一样同时计算多个样本
 
@@ -46,6 +48,16 @@ python -m deta_generator3 parallel --job-dir jobs/paired1000 --samples 1000 --jo
 `--jobs 10`代表10个独立几何同时求解；每个样本的线程默认按可用CPU预算除以并发数分配。任务先固定全部几何和划分，再建立多个小分片，完成一个分片后补上下一个。原生预检查先于并行求解。需要足够内存和许可证并发容量；首次运行先用单样本预检查获得每例内存估计，再选择服务器并发数。
 
 中断后用相同命令续跑。样本数和分片布局固定，改变时使用新目录；线程和安装路径可随机器调整，物理／材料／观察算子改变会被拒绝。控制器中断不杀掉已运行的工作进程，重启时检查旧进程身份。`.run/`提供PyCharm共享配置。默认失败案例保留并跳过，继续其他几何；仅串行明确指定 `--retry-failed` 才重试，旧错误及失败工程保留，新尝试写入独立retry子目录。
+
+针对64逻辑CPU服务器的新1000组任务，当前采用8并发×7线程，共请求56线程，保留系统余量；实际吞吐和可用许可并发需由服务器原生运行确认。新任务使用独立目录和新种子，旧313组单独保留：
+
+```powershell
+python -m deta_generator3 parallel --job-dir jobs/paired1000_v301_seed20261026 --samples 1000 --seed 20261026 --jobs 8 --threads 7
+```
+
+旧任务续跑不指定seed时自动沿用保存值；显式改动旧任务seed会被拒绝。20261023与20261026各1000组完整计划已核对，包括物理镜像等价组在内无交集。数据接入仍需执行跨包重复及划分核对。
+
+每30秒的独立watchdog核对进程身份、当前样本及求解日志。无原生引擎且同一未完成日志连续600秒无进展时，控制器明确报错并停止继续派发，原工作进程及数据保留；观察中断、身份或进度变化会重置计时。当前status2回执后的结果收集、以及尚无当前求解日志的初始化阶段，不按该求解停滞规则处理。它不能自动修复Ansys许可客户端，也不自动终止或重试仿真。
 
 ### 引擎消失但工作进程仍存活时
 
@@ -64,6 +76,22 @@ python -m deta_generator3 parallel --job-dir jobs/paired1000 --samples 1000 --jo
 ```
 
 这会跳过已成功及已失败的样本，继续中断／pending样本，保留原样本数、分片和划分。先确认新日志持续更新及实际引擎运行，再考虑增加并发。恢复操作不等于根因已经查明，仍需结合许可证、内存、磁盘和原生软件诊断。
+
+用户明确要停止仍在求解的旧批次时，先Ctrl+C停止控制器，再用显式模式；该模式会先停止本任务已核实的工作进程及其FDTD子进程，再保存稳定的中断工程／日志：
+
+```powershell
+python scripts/recover_stalled_task.py --job-dir jobs/paired1000 --stop-active
+```
+
+输出`preserved_and_released_no_restart`后即停止完成；原清单和成功NPZ保持原样，未提交NPZ只保存、不自动接入。许可证客户端、MPI服务和其他项目进程不会被停止。
+
+旧批次停止后，可在3.0.1上合并已开始的分片，尚未创建的后续分片不会阻碍导出：
+
+```powershell
+python -m deta_generator3 parallel --job-dir jobs/paired1000 --samples 1000 --parallel-action merge
+```
+
+传回数据时打包该任务的`merged/`、`job.json`和`materials/`，保存原shard和recovery目录作为原始证据；无需重复打包两套成功场图。
 
 ## 输出与磁盘
 

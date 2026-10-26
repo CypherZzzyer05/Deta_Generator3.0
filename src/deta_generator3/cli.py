@@ -100,7 +100,7 @@ def main(argv=None):
     parser.add_argument("--job-dir", type=Path)
     parser.add_argument("--preset", choices=("paired",), default="paired")
     parser.add_argument("--samples", type=int)
-    parser.add_argument("--seed", type=int, default=20261023)
+    parser.add_argument("--seed", type=int)
     parser.add_argument("--threads", type=int)
     parser.add_argument("--processes", type=int)
     parser.add_argument("--lumapi")
@@ -127,12 +127,14 @@ def main(argv=None):
             from .parallel import run_parallel
             samples = args.samples if args.samples is not None else 1000
             return run_parallel(args.job_dir or Path(f"jobs/paired_{samples}"), samples,
-                args.workers, args.concurrency, args.threads, args.lumapi, args.parallel_action, args.pack_every, jobs=args.jobs)
+                args.workers, args.concurrency, args.threads, args.lumapi, args.parallel_action, args.pack_every,
+                jobs=args.jobs, seed=args.seed)
         if any(v is not None for v in (args.jobs, args.workers, args.concurrency)):
             raise ValueError("--jobs/--workers/--concurrency require parallel")
         if args.command == "init":
             result = initialize(args.job_dir or "jobs/paired", args.samples if args.samples is not None else 1000,
-                                args.threads if args.threads is not None else 4, args.lumapi, args.seed, args.keep_projects)
+                                args.threads if args.threads is not None else 4, args.lumapi,
+                                args.seed if args.seed is not None else 20261023, args.keep_projects)
         else:
             config = configured(args)
             if args.shard_count < 1 or not 0 <= args.shard_index < args.shard_count:

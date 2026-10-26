@@ -8,6 +8,18 @@ import sys
 from .resources import cpu_inventory
 
 
+def resolve_seed(job_dir, seed=None):
+    if seed is not None and (type(seed) is not int or seed < 0):
+        raise ValueError('seed must be a nonnegative integer')
+    config_path = Path(job_dir)/'job.json'
+    if config_path.is_file():
+        previous = json.loads(config_path.read_text(encoding='utf-8-sig'))['seed']
+        if seed is not None and seed != previous:
+            raise ValueError('Existing task seed is fixed; use a new --job-dir for new geometries')
+        return previous
+    return 20261023 if seed is None else seed
+
+
 def resolve_resources(job_dir, samples=100, workers=None, concurrency=None, threads=None, jobs=None):
     if samples < 1:
         raise ValueError('samples must be positive')
@@ -40,9 +52,10 @@ def resolve_resources(job_dir, samples=100, workers=None, concurrency=None, thre
 
 
 def run_parallel(job_dir, samples=100, workers=None, concurrency=None, threads=None,
-                 lumapi=None, action='start', pack_every=25, jobs=None):
+                 lumapi=None, action='start', pack_every=25, jobs=None, seed=None):
     if sys.platform != 'win32':
         raise ValueError('The automatic parallel controller is currently for Windows')
+    seed = resolve_seed(job_dir, seed)
     resources = resolve_resources(job_dir,samples,workers,concurrency,threads,jobs)
     workers,concurrency,threads = (resources[key] for key in ('workers','concurrency','threads'))
     if not 1 <= pack_every <= 10000:
@@ -52,14 +65,14 @@ def run_parallel(job_dir, samples=100, workers=None, concurrency=None, threads=N
         raise FileNotFoundError('Windows PowerShell is required for the parallel controller')
     script = Path(__file__).parent/'assets/scripts/run-parallel.ps1'
     if not script.is_file():
-        raise FileNotFoundError('Packaged controller missing; reinstall deta-generator3 3.0.0 or newer')
+        raise FileNotFoundError('Packaged controller missing; reinstall deta-generator3 3.0.1 or newer')
     job_dir = Path(job_dir).resolve()
     api = lumapi or os.environ.get('LUMERICAL_LUMAPI_PATH')
     env = dict(os.environ, PYTHONUNBUFFERED='1', PYTHONIOENCODING='utf-8')
     base = [shell, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(script),
             '-Python', sys.executable, '-JobDir', str(job_dir), '-Samples', str(samples),
             '-Workers', str(workers), '-Concurrency', str(concurrency), '-Threads', str(threads),
-            '-PackEvery', str(pack_every)]
+            '-PackEvery', str(pack_every), '-Seed', str(seed)]
     if api:
         base += ['-Lumapi', api]
 

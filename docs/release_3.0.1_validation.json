@@ -1,0 +1,35 @@
+{
+  "version": "3.0.1",
+  "date": "2026-10-26",
+  "tests": {
+    "command": "python -B -m unittest discover -s tests -v",
+    "count": 62,
+    "passed": true,
+    "seconds": 94.374,
+    "native_solver_used": false
+  },
+  "wheel_verification": {
+    "version": "3.0.1",
+    "all_project_modules_in_venv": true,
+    "native_api_loaded": false,
+    "imported_modules": 5,
+    "standalone_wheel_install_verified": true,
+    "real_cli_powershell_init_seed": 20261026,
+    "plan_samples": 1000,
+    "queued_shards": 32,
+    "prepare_solver_run": false,
+    "wheel_sha256": "a85d5d6dd4968c9a92afd1607ef35d365ed749a8821ef41fc9d27ec66d9b89c7",
+    "wheel_bytes": 69583
+  },
+  "physical_implementation_unchanged": true,
+  "interpretation": "Native solvers/physics/quality gates unchanged. Workflow tests and installed-wheel prepare are not a new native FDTD or8-license throughput test. Existing3.0.0 native evidence retained.",
+  "physical_implementation_sha256": {
+    "config.py": "5ce7e7f54a732ea8756311e66ce0b694b82bf50bd49808b0ebfa10499a30d53d",
+    "solver.py": "b5b7aeb3f602a1f6742b297f3bcfb0acc9b2f01377acac0c0f4de469249ea8f0",
+    "native.py": "d395e44371fc0bf8fac3cb5f3f905d490a4baec80062851c6bf86066b38af36c",
+    "materials.py": "6708ba02cc3439e53fd6089d062b88d93f739180facee78f8fd0a263dc64bddc",
+    "fixed_fov.py": "3cc31b2608121f9e861144e5e5c261a05ad27030fa9a0b60603bfa4dc321926a",
+    "vision.py": "b37bbd520ceabe343087a8fb11af0a09f0ee16946a5efc2c0477faddb3138ca0"
+  },
+  "physical_implementation_evidence": "All six solver/material/reconstruction files byte-identical to the server v251 preflight reported before release."
+}

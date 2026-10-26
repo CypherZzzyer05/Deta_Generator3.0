@@ -7,6 +7,7 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 import unittest
+import psutil
 
 ROOT = Path(__file__).resolve().parents[1]
 SHELL = shutil.which("powershell") or shutil.which("pwsh")
@@ -95,6 +96,31 @@ solver.PairedSimulator = TimedSimulator
         summary = json.loads((self.job/"merged/summary.json").read_text())
         self.assertEqual((summary["success"], summary["failed"]), (2, 2))
         self.assertEqual(len(list((self.root/"trace").glob("*.json"))), 4)
+
+    def test_watchdog_stall_is_not_swallowed_as_a_monitor_warning(self):
+        site = self.root/"site/sitecustomize.py"
+        with site.open("a", encoding="utf-8") as stream:
+            stream.write('''
+if os.environ.get("GENERATOR3_TEST_WATCHDOG_TRIP") and "deta_generator3.watchdog" in sys.orig_argv:
+    print("TEST-ONLY injected watchdog stall", flush=True)
+    os._exit(2)
+''')
+        run = self.invoke(env=dict(self.env, GENERATOR3_TEST_WATCHDOG_TRIP="1"))
+        self.assertNotEqual(run.returncode, 0, run.stdout)
+        self.assertIn("Verified worker stall", run.stdout)
+        # The controller intentionally leaves workers untouched. These test
+        # workers finish their four analytic fixtures; wait before temp cleanup.
+        runtime = json.loads((self.job/"parallel_workers.json").read_text(encoding="utf-8-sig"))
+        waiting = []
+        for row in runtime["workers"]:
+            try:
+                process = psutil.Process(row["pid"])
+                if abs(process.create_time()-row["started_at_unix"]) <= 2:
+                    waiting.append(process)
+            except psutil.NoSuchProcess:
+                pass
+        _, alive = psutil.wait_procs(waiting, timeout=30)
+        self.assertFalse(alive)
 
 
 if __name__ == "__main__":
