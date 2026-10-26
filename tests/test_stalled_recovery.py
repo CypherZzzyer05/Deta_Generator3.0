@@ -110,6 +110,44 @@ class StalledRecoveryTests(unittest.TestCase):
                 recovery.recover(self.root, self.api)
         self.assertTrue(all(p.alive for p in self.workers))
 
+    def test_explicit_active_stop_releases_owned_engines_then_preserves_stable_files(self):
+        engine = ProcessFixture(404, "fdtd-engine-msmpi.exe")
+        client = ProcessFixture(405, "ansyscl.exe")
+        self.workers[0].kids = [self.cad, engine, self.other[1], client]
+        lookup = self.api.Process
+        self.api.Process = lambda pid: engine if pid == 404 else client if pid == 405 else lookup(pid)
+        self.snapshot["native_engine_count"] = 1
+        for sample in self.snapshot["active_samples"]:
+            sample["log_age_seconds"] = 1.
+        partial = self.root/"shard0/samples/sample_000000.npz"
+        partial.write_bytes(b"TEST-ONLY uncommitted sample; never admitted")
+        originals = {p: p.read_bytes() for p in self.root.rglob("*") if p.is_file()}
+        original_copy = recovery.shutil.copy2
+
+        def copy_after_writers_stop(source, target):
+            self.assertFalse(any(p.alive for p in [*self.workers, self.cad, engine]))
+            return original_copy(source, target)
+
+        with patch.object(recovery, "collect_status", return_value=self.snapshot), \
+                patch.object(recovery.shutil, "copy2", side_effect=copy_after_writers_stop):
+            result = recovery.recover(self.root, self.api, stop_active=True)
+        self.assertEqual(set(result["stopped_pids"]), {101, 102, 303, 404})
+        self.assertEqual(result["reason"], "user_requested_stop_active")
+        self.assertTrue(all(p.alive for p in [*self.other, client]))
+        archive = next(self.root.glob("recovery_*"))
+        self.assertEqual((archive/"shard0/samples/sample_000000.npz").read_bytes(), partial.read_bytes())
+        self.assertFalse((archive/"shard0/samples/sample_000002.npz").exists())
+        for path, value in originals.items():
+            self.assertEqual(path.read_bytes(), value)
+
+    def test_explicit_stop_still_rejects_reused_process_identity(self):
+        self.snapshot["native_engine_count"] = 1
+        self.workers[0].created = 2000.
+        with patch.object(recovery, "collect_status", return_value=self.snapshot):
+            with self.assertRaisesRegex(RuntimeError, "identity changed"):
+                recovery.recover(self.root, self.api, stop_active=True)
+        self.assertTrue(all(p.alive for p in self.workers))
+
 
 if __name__ == "__main__":
     unittest.main()
